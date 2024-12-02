@@ -70,6 +70,8 @@
 
 #ifdef _KERNEL
 
+#define        PF_PFIL_NOREFRAGMENT    0x80000000
+
 #if defined(__arm__)
 #define PF_WANT_32_TO_64_COUNTER
 #endif
@@ -2332,13 +2334,16 @@ extern int			 pf_udp_mapping_insert(struct pf_udp_mapping
 				    *mapping);
 extern void			 pf_udp_mapping_release(struct pf_udp_mapping
 				    *mapping);
+uint32_t			 pf_hashsrc(struct pf_addr *, sa_family_t);
+extern bool			 pf_src_node_exists(struct pf_ksrc_node **,
+				    struct pf_srchash *);
 extern struct pf_ksrc_node	*pf_find_src_node(struct pf_addr *,
 				    struct pf_krule *, sa_family_t,
 				    struct pf_srchash **, bool);
 extern void			 pf_unlink_src_node(struct pf_ksrc_node *);
 extern u_int			 pf_free_src_nodes(struct pf_ksrc_node_list *);
 extern void			 pf_print_state(struct pf_kstate *);
-extern void			 pf_print_flags(u_int8_t);
+extern void			 pf_print_flags(uint16_t);
 extern int			 pf_addr_wrap_neq(struct pf_addr_wrap *,
 				    struct pf_addr_wrap *);
 extern u_int16_t		 pf_cksum_fixup(u_int16_t, u_int16_t, u_int16_t,
@@ -2372,7 +2377,8 @@ void	pf_poolmask(struct pf_addr *, struct pf_addr*,
 	    struct pf_addr *, struct pf_addr *, sa_family_t);
 void	pf_addr_inc(struct pf_addr *, sa_family_t);
 int	pf_max_frag_size(struct mbuf *);
-int	pf_refragment6(struct ifnet *, struct mbuf **, struct m_tag *, bool);
+int	pf_refragment6(struct ifnet *, struct mbuf **, struct m_tag *,
+	    struct ifnet *, bool);
 #endif /* INET6 */
 
 int	pf_multihome_scan_init(int, int, struct pf_pdesc *);
@@ -2619,10 +2625,9 @@ u_short			 pf_map_addr(u_int8_t, struct pf_krule *,
 u_short			 pf_map_addr_sn(u_int8_t, struct pf_krule *,
 			    struct pf_addr *, struct pf_addr *,
 			    struct pfi_kkif **nkif, struct pf_addr *,
-			    struct pf_ksrc_node **);
+			    struct pf_ksrc_node **, struct pf_srchash **);
 u_short			 pf_get_translation(struct pf_pdesc *,
-			    int, struct pf_ksrc_node **,
-			    struct pf_state_key **, struct pf_state_key **,
+			    int, struct pf_state_key **, struct pf_state_key **,
 			    struct pf_addr *, struct pf_addr *,
 			    uint16_t, uint16_t, struct pf_kanchor_stackframe *,
 			    struct pf_krule **,
