@@ -1,8 +1,10 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2003 Orion Hodson
- * All rights reserved.
+ * Copyright (c) 2023 The FreeBSD Foundation
+ *
+ * This software was developed by Jake Freeland <jfree@FreeBSD.org>
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,10 +28,33 @@
  * SUCH DAMAGE.
  */
 
-typedef void (*ac97_patch)(struct ac97_info*);
+#include <sys/types.h>
+#include <sys/socket.h>
 
-void ad1886_patch(struct ac97_info*);
-void ad198x_patch(struct ac97_info*);
-void ad1981b_patch(struct ac97_info*);
-void cmi9739_patch(struct ac97_info*);
-void alc655_patch(struct ac97_info*);
+#include <libcasper.h>
+#include <string.h>
+
+#include <casper/cap_net.h>
+
+#include "syslogd_cap.h"
+
+/* This is where libcasper receives commands via nvlist. */
+static int
+casper_command(const char *cmd, const nvlist_t *limits __unused,
+    nvlist_t *nvlin, nvlist_t *nvlout)
+{
+	int error = EINVAL;
+
+	if (strcmp(cmd, "p_open") == 0)
+		error = casper_p_open(nvlin, nvlout);
+	else if (strcmp(cmd, "readconfigfile") == 0)
+		error = casper_readconfigfile(nvlin, nvlout);
+	else if (strcmp(cmd, "ttymsg") == 0)
+		error = casper_ttymsg(nvlin, nvlout);
+	else if (strcmp(cmd, "wallmsg") == 0)
+		error = casper_wallmsg(nvlin);
+
+	return (error);
+}
+
+CREATE_SERVICE("syslogd.casper", NULL, casper_command, CASPER_SERVICE_STDIO);
