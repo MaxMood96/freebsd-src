@@ -170,34 +170,10 @@ r92c_send_ra_cmd(struct rtwn_softc *sc, int macid, uint32_t rates,
 	uint8_t mode;
 	int error = 0;
 
-	/* XXX should be called directly from iv_newstate() for MACID_BC */
-	/* XXX joinbss, not send_ra_cmd() */
-#ifdef RTWN_TODO
-	/* NB: group addressed frames are done at 11bg rates for now */
-	if (ic->ic_curmode == IEEE80211_MODE_11B)
-		mode = R92C_RAID_11B;
-	else
-		mode = R92C_RAID_11BG;
-	/* XXX misleading 'mode' value here for unicast frames */
-	RTWN_DPRINTF(sc, RTWN_DEBUG_RA,
-	    "%s: mode 0x%x, rates 0x%08x, basicrates 0x%08x\n", __func__,
-	    mode, rates, basicrates);
-
-	/* Set rates mask for group addressed frames. */
-	cmd.macid = RTWN_MACID_BC | R92C_CMD_MACID_VALID;
-	cmd.mask = htole32(mode << 28 | basicrates);
-	error = rtwn_fw_cmd(sc, R92C_CMD_MACID_CONFIG, &cmd, sizeof(cmd));
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "could not set RA mask for broadcast station\n");
-		return (error);
-	}
-#endif
-
 	/* Set rates mask for unicast frames. */
-	if (maxrate >= RTWN_RIDX_HT_MCS(0))
+	if (RTWN_RATE_IS_HT(maxrate))
 		mode = R92C_RAID_11GN;
-	else if (maxrate >= RTWN_RIDX_OFDM6)
+	else if (RTWN_RATE_IS_OFDM(maxrate))
 		mode = R92C_RAID_11BG;
 	else
 		mode = R92C_RAID_11B;
@@ -220,7 +196,7 @@ r92c_init_ra(struct rtwn_softc *sc, int macid)
 {
 	struct ieee80211_htrateset *rs_ht;
 	struct ieee80211_node *ni;
-	uint32_t rates;
+	uint32_t rates, htrates;
 	int maxrate;
 
 	RTWN_NT_LOCK(sc);
@@ -236,13 +212,20 @@ r92c_init_ra(struct rtwn_softc *sc, int macid)
 		rs_ht = &ni->ni_htrates;
 	else
 		rs_ht = NULL;
-	/* XXX MACID_BC */
-	rtwn_get_rates(sc, &ni->ni_rates, rs_ht, &rates, &maxrate, 0);
+	/*
+	 * Note: this pushes the rate bitmap and maxrate into the
+	 * firmware; and for this chipset 2-stream 11n support is enough.
+	 */
+	rtwn_get_rates(sc, &ni->ni_rates, rs_ht, &rates, &htrates, &maxrate, 0);
 	RTWN_NT_UNLOCK(sc);
 
 #ifndef RTWN_WITHOUT_UCODE
 	if (sc->sc_ratectl == RTWN_RATECTL_FW) {
-		r92c_send_ra_cmd(sc, macid, rates, maxrate);
+		uint32_t fw_rates;
+		/* Add HT rates after normal rates; limit to MCS0..15 */
+		fw_rates = rates |
+		    ((htrates & 0xffff) << RTWN_RIDX_HT_MCS_SHIFT);
+		r92c_send_ra_cmd(sc, macid, fw_rates, maxrate);
 	}
 #endif
 
@@ -283,7 +266,6 @@ r92c_joinbss_rpt(struct rtwn_softc *sc, int macid)
 end:
 #endif
 
-	/* TODO: init rates for RTWN_MACID_BC. */
 	if (macid & RTWN_MACID_VALID)
 		r92c_init_ra(sc, macid & ~RTWN_MACID_VALID);
 }
