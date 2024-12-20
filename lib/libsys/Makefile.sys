@@ -311,6 +311,7 @@ MAN+=	abort2.2 \
 	semget.2 \
 	semop.2 \
 	send.2 \
+	setcred.2 \
 	setfib.2 \
 	sendfile.2 \
 	setgroups.2 \
@@ -399,6 +400,7 @@ MLINKS+=chmod.2 fchmod.2 \
 MLINKS+=chown.2 fchown.2 \
 	chown.2 fchownat.2 \
 	chown.2 lchown.2
+MLINKS+=chroot.2 fchroot.2
 MLINKS+=clock_gettime.2 clock_getres.2 \
 	clock_gettime.2 clock_settime.2
 MLINKS+=closefrom.2 close_range.2
